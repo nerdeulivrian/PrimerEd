@@ -1,4 +1,4 @@
-import { Pause, Play, RotateCcw, Trash2 } from 'lucide-react'
+import { Pause, Play, RotateCcw, Trash2, X } from 'lucide-react'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { validateLesson } from '../lesson/validate'
 import type { Lesson } from '../lesson/types'
@@ -251,7 +251,15 @@ function LessonEditor({ store, lesson }: { store: SessionStore; lesson: Lesson }
   )
 }
 
-export function SimulatorPanel({ store, snapshot }: { store: SessionStore; snapshot: Snapshot }) {
+export function SimulatorPanel({
+  store,
+  snapshot,
+  onClose,
+}: {
+  store: SessionStore
+  snapshot: Snapshot
+  onClose: () => void
+}) {
   const [tab, setTab] = useState<Tab>('calls')
   const { session, log } = snapshot
   const onCall = (call: ToolCall) => store.call(call)
@@ -263,19 +271,30 @@ export function SimulatorPanel({ store, snapshot }: { store: SessionStore; snaps
   ]
 
   return (
-    <aside className="flex h-full w-[420px] shrink-0 flex-col border-l border-zinc-200 bg-white">
+    <aside className="flex h-full w-full shrink-0 flex-col border-zinc-200 bg-white md:w-[420px] md:border-l">
       <header className="flex items-center justify-between border-b border-zinc-200 px-4 py-3">
         <div>
           <h1 className="text-[14px] font-bold text-zinc-900">Voice AI simulator</h1>
           <p className="text-[11px] text-zinc-500">Play the AI: send the function calls it would make.</p>
         </div>
-        <button
-          type="button"
-          onClick={() => store.reset()}
-          className="flex cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-[12px] text-zinc-600 hover:bg-zinc-100"
-        >
-          <RotateCcw className="size-3.5" /> Reset
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => store.reset()}
+            className="flex cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-[12px] text-zinc-600 hover:bg-zinc-100"
+          >
+            <RotateCcw className="size-3.5" /> Reset
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            title="Back to the app (`)"
+            aria-label="Close the simulator"
+            className="cursor-pointer rounded-md p-1 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800"
+          >
+            <X className="size-4" />
+          </button>
+        </div>
       </header>
 
       <nav className="flex border-b border-zinc-200 px-2">

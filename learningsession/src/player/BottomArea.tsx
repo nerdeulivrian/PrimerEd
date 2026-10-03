@@ -1,4 +1,5 @@
-import { motion } from 'motion/react'
+import { animate, useMotionValue, useReducedMotion } from 'motion/react'
+import { useEffect, useLayoutEffect, useRef } from 'react'
 import type { Tier } from '../session/state'
 import type { Pressed } from '../session/store'
 import { CheckMark, CrossMark } from './icons'
@@ -100,8 +101,7 @@ export function FeedbackPanel({
   )
 }
 
-/** The EXIT panel's height. Experience Complete reserves this space in its layout. */
-export const exitPanelHeight = 'h-[80px] @tab:h-[140px]'
+const exitPanelHeight = 'h-[80px] @tab:h-[140px]'
 
 /** Experience Complete keeps a white bottom panel holding a single EXIT button. */
 export function ExitPanel({ tier, pressed }: { tier: Tier; pressed?: boolean }) {
@@ -123,6 +123,9 @@ export type SheetContent = { key: string; tone: Tone; fraction: number } & (
 const RISE = { duration: 0.25, ease: [0.22, 1, 0.36, 1] } as const
 const DROP = { duration: 0.2, ease: [0.4, 0, 1, 1] } as const
 
+/** Room the body always leaves for the progress bar. */
+const BAR_ROOM = 10
+
 /**
  * The progress bar riding on top of a bottom panel (feedback or EXIT), laid
  * over the bottom of the screen. The panel slides up from below the bottom
@@ -130,12 +133,20 @@ const DROP = { duration: 0.2, ease: [0.4, 0, 1, 1] } as const
  * clipped), and the bar sits on its top edge the whole way.
  * When the panel changes (feedback -> EXIT), the old one goes all the way down
  * first, then the new one rises.
+ *
+ * It also renders a spacer at the end of the screen's flex column. With
+ * `push`, the spacer grows with the part of the panel that's up, so the body
+ * above (a question, Experience Complete) rises with the panel and stays
+ * centred in the space left. Without it (slides), the panel covers the body.
+ * A panel on its way down always belongs to the screen before, so the new
+ * body doesn't follow it: it starts in its place and the old panel drops over it.
  */
 export function BottomSheet({
   open,
   closing,
   bar,
   pressed,
+  push,
   onClosed,
 }: {
   /** The panel that should be up, if any. */
@@ -145,34 +156,78 @@ export function BottomSheet({
   /** The bar when no panel is up. */
   bar: { fraction: number; tone: Tone }
   pressed?: Pressed | null
+  /** Move the body up with the panel instead of covering it. */
+  push: boolean
   onClosed: () => void
 }) {
   const content = closing ?? open
   const up = !closing && open !== null
+  const follow = push && !closing
+  const reduceMotion = useReducedMotion()
+
+  // How far up the panel is: 0 = below the bottom edge, 1 = all the way up.
+  // Mounting with a panel (e.g. after switching device frames) starts it up.
+  const progress = useMotionValue(content ? 1 : 0)
+  const sheetRef = useRef<HTMLDivElement>(null)
+  const spacerRef = useRef<HTMLDivElement>(null)
+
+  // Every frame, the panel's slide and the spacer's height come from the same
+  // progress, written straight to the DOM. The panel's height is re-read each
+  // time, so a panel that's already up when this mounts is measured too.
+  useLayoutEffect(() => {
+    const sheet = sheetRef.current
+    const spacer = spacerRef.current
+    if (!sheet || !spacer) return
+    const update = () => {
+      const p = progress.get()
+      const height = sheet.offsetHeight
+      sheet.style.transform = `translateY(${(1 - p) * 100}%)`
+      spacer.style.height = `${BAR_ROOM + (follow ? p * height : 0)}px`
+    }
+    update()
+    const unsubscribe = progress.on('change', update)
+    const observer = new ResizeObserver(update)
+    observer.observe(sheet)
+    return () => {
+      unsubscribe()
+      observer.disconnect()
+    }
+  }, [progress, follow])
+
+  const onClosedRef = useRef(onClosed)
+  useLayoutEffect(() => {
+    onClosedRef.current = onClosed
+  })
+
+  useEffect(() => {
+    let live = true
+    const controls = animate(progress, up ? 1 : 0, reduceMotion ? { duration: 0 } : up ? RISE : DROP)
+    controls.finished.then(() => {
+      if (live && !up) onClosedRef.current()
+    })
+    return () => {
+      live = false
+      controls.stop()
+    }
+  }, [up, progress, reduceMotion])
 
   return (
-    <motion.div
-      className="absolute inset-x-0 bottom-0 z-10"
-      // Mounting mid-close (e.g. after switching device frames) still drops from the top.
-      initial={closing ? { y: '0%' } : false}
-      animate={{ y: up ? '0%' : '100%' }}
-      transition={up ? RISE : DROP}
-      onAnimationComplete={(target) => {
-        if (typeof target === 'object' && !Array.isArray(target) && target.y === '100%') onClosed()
-      }}
-    >
-      <div className="absolute inset-x-0 bottom-full">
-        <ProgressBar fraction={content?.fraction ?? bar.fraction} tone={content?.tone ?? bar.tone} />
+    <>
+      <div ref={spacerRef} aria-hidden className="shrink-0" />
+      <div ref={sheetRef} className="absolute inset-x-0 bottom-0 z-10">
+        <div className="absolute inset-x-0 bottom-full">
+          <ProgressBar fraction={content?.fraction ?? bar.fraction} tone={content?.tone ?? bar.tone} />
+        </div>
+        {content?.kind === 'feedback' && (
+          <FeedbackPanel
+            key={content.key}
+            correct={content.correct}
+            explanation={content.explanation}
+            pressed={up && pressed === 'proceed'}
+          />
+        )}
+        {content?.kind === 'exit' && <ExitPanel key={content.key} tier={content.tier} pressed={up && pressed === 'exit'} />}
       </div>
-      {content?.kind === 'feedback' && (
-        <FeedbackPanel
-          key={content.key}
-          correct={content.correct}
-          explanation={content.explanation}
-          pressed={up && pressed === 'proceed'}
-        />
-      )}
-      {content?.kind === 'exit' && <ExitPanel key={content.key} tier={content.tier} pressed={up && pressed === 'exit'} />}
-    </motion.div>
+    </>
   )
 }

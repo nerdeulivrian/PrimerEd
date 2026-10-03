@@ -50,6 +50,8 @@
   html,
   body {
     height: 100%;
+    /* The app fills the screen; no rubber-band scrolling of the whole page. */
+    overscroll-behavior: none;
   }
 
   body {
@@ -58,6 +60,7 @@
     /* The design sets text to the font's "normal" line height unless noted. */
     line-height: normal;
     -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
   }
 }
 

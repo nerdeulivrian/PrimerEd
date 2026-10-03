@@ -1,9 +1,8 @@
-import { MotionConfig } from 'motion/react'
 import { useState } from 'react'
 import { currentStep } from '../session/engine'
 import type { SessionState } from '../session/state'
 import type { Pressed } from '../session/store'
-import { BottomSheet, exitPanelHeight, type SheetContent } from './BottomArea'
+import { BottomSheet, type SheetContent } from './BottomArea'
 import { EntryScreen } from './EntryScreen'
 import { ExperienceComplete } from './ExperienceComplete'
 import { MultipleChoice } from './MultipleChoice'
@@ -39,7 +38,8 @@ function StepBody({ session }: { session: SessionState }) {
 
 /**
  * The lesson screen: a body with the bottom sheet (progress bar plus the
- * feedback or EXIT panel) laid over its lower edge. Nothing in here is
+ * feedback or EXIT panel) at its lower edge. Questions and Experience Complete
+ * move up with the panel; slides stay put under it. Nothing in here is
  * clickable except START.
  * Must sit inside an `@container` element: breakpoints are container queries.
  */
@@ -84,50 +84,40 @@ export function LessonPlayer({ session, pressed, onStart }: Props) {
   }
 
   return (
-    <MotionConfig reducedMotion="user">
-      <div className="relative flex h-full w-full flex-col overflow-hidden bg-bg font-main">
-        {summary ? (
-          <>
-            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-[15px] @tab:px-[70px] @tab:py-[20px] @desk:px-0">
-              <div className="my-auto flex w-full animate-step-in justify-center py-[20px] @tab:py-0">
-                <ExperienceComplete info={lesson.lesson} summary={summary} />
-              </div>
+    <div className="relative flex h-full w-full flex-col overflow-hidden bg-bg font-main">
+      {summary ? (
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-[15px] @tab:px-[70px] @tab:py-[20px] @desk:px-0">
+          <div className="my-auto flex w-full animate-step-in justify-center py-[20px] @tab:py-0">
+            <ExperienceComplete info={lesson.lesson} summary={summary} />
+          </div>
+        </div>
+      ) : (
+        step &&
+          (step.type === 'slide' ? (
+            <div key={step.id} className="flex min-h-0 flex-1 animate-step-in flex-col">
+              <StepBody session={session} />
             </div>
-            {/* Room for the progress bar and the EXIT panel, which live in the bottom sheet. */}
-            <div className="h-[10px] shrink-0" />
-            <div className={`shrink-0 ${exitPanelHeight}`} />
-          </>
-        ) : (
-          step && (
-            <>
-              {step.type === 'slide' ? (
-                <div key={step.id} className="flex min-h-0 flex-1 animate-step-in flex-col">
+          ) : (
+            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-[15px] @tab:px-[70px] @tab:py-[20px] @desk:px-0">
+              <div key={step.id} className="my-auto flex w-full animate-step-in justify-center py-[20px] @tab:py-0">
+                {/* Questions are drawn at 80% of the design's size on tablet and desktop. */}
+                <div className="w-full @tab:[zoom:0.8] @desk:w-[940px]">
                   <StepBody session={session} />
                 </div>
-              ) : (
-                <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-[15px] @tab:px-[70px] @tab:py-[20px] @desk:px-0">
-                  <div key={step.id} className="my-auto flex w-full animate-step-in justify-center py-[20px] @tab:py-0">
-                    <div className="w-full @desk:w-[940px]">
-                      <StepBody session={session} />
-                    </div>
-                  </div>
-                </div>
-              )}
-              {/* Room for the progress bar, which lives in the bottom sheet. */}
-              <div className="h-[10px] shrink-0" />
-            </>
-          )
-        )}
+              </div>
+            </div>
+          ))
+      )}
 
-        <BottomSheet
-          key="sheet"
-          open={open}
-          closing={closing}
-          bar={{ fraction, tone }}
-          pressed={pressed}
-          onClosed={() => setClosing(null)}
-        />
-      </div>
-    </MotionConfig>
+      <BottomSheet
+        key="sheet"
+        open={open}
+        closing={closing}
+        bar={{ fraction, tone }}
+        pressed={pressed}
+        push={step?.type !== 'slide'}
+        onClosed={() => setClosing(null)}
+      />
+    </div>
   )
 }
