@@ -3,3 +3,6 @@ learningsession/
 
 # Its own git repo (see landing/README.md)
 landing/
+
+# Its own git repo (see backend/README.md)
+backend/
