@@ -192,13 +192,16 @@ export class HomeStore {
     this.set({
       view,
       caption: null,
+      // The side panel (tab bar on mobile) comes in with the Experience tab, also for a learner
+      // with saved experiences who hasn't made one this session.
+      shell: view === 'experience' || this.state.shell,
       // Seeing the Experience tab clears its NEW badge.
       badge: view === 'experience' ? false : this.state.badge,
     })
   }
 
   openExperience(id: string) {
-    this.set({ view: 'path', openId: id, caption: null, badge: false })
+    this.set({ view: 'path', openId: id, caption: null, badge: false, shell: true })
   }
 
   /** Stop ends the voice session (MVP: no resuming). `text` replaces "You stopped the conversation". */

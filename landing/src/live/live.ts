@@ -30,7 +30,8 @@ export class Live {
   /** When openExperience last ran: a stray openTab("experience") right after it is ignored. */
   private pathOpenedAt = 0
   /** Set by openLevel: where to go once the AI has said its last line. */
-  private launch: { url: string; timer: number } | null = null
+  private launch: { url: string; timer: number; spoke: boolean } | null = null
+  private agentSpeaking = false
 
   constructor(store: HomeStore) {
     this.store = store
@@ -76,6 +77,7 @@ export class Live {
   /** Stop, or before Start over. */
   async end() {
     this.run++
+    this.agentSpeaking = false
     if (this.launch) clearTimeout(this.launch.timer)
     this.launch = null
     this.events?.close()
@@ -90,10 +92,9 @@ export class Live {
     const { store } = this
     switch (m.object) {
       case 'assistant.transcription': {
-        const { turn_id, text, turn_status } = m as Extract<AgentMessage, { object: 'assistant.transcription' }>
+        const { turn_id, text } = m as Extract<AgentMessage, { object: 'assistant.transcription' }>
         const clean = spoken(text)
         if (clean) store.aiText(`a${turn_id}`, clean)
-        if (turn_status !== 0 && this.launch) this.goToLesson()
         break
       }
       case 'user.transcription': {
@@ -102,9 +103,14 @@ export class Live {
         if (clean) store.heardText(`u${turn_id}`, clean)
         break
       }
-      case 'message.state':
+      case 'message.state': {
         store.agentState(String(m.state))
+        // The state follows the audio as it plays, so this is when the AI's last line is over.
+        this.agentSpeaking = m.state === 'speaking'
+        if (this.launch && this.agentSpeaking) this.launch.spoke = true
+        else if (this.launch?.spoke) this.goToLesson()
         break
+      }
       case 'message.interrupt':
         if (this.launch) this.goToLesson()
         break
@@ -162,8 +168,13 @@ export class Live {
       }
       case 'openLevel': {
         store.setStatus(`Opening level ${args.level}…`)
-        // Go once the AI's goodbye line is over, or after a few seconds if it says nothing.
-        this.launch = { url: String(args.url), timer: window.setTimeout(() => this.goToLesson(), 8000) }
+        // Go once the AI's line is over (it may still be playing, or come just after the call).
+        // If it says nothing, go after a moment; never wait more than a few seconds.
+        const launch = { url: String(args.url), timer: window.setTimeout(() => this.goToLesson(), 8000), spoke: this.agentSpeaking }
+        this.launch = launch
+        window.setTimeout(() => {
+          if (this.launch === launch && !launch.spoke) this.goToLesson()
+        }, 1500)
         return { success: true }
       }
     }

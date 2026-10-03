@@ -17,9 +17,9 @@ function Card({ experience: e, number }: { experience: Experience; number: numbe
     : 'outline-2 -outline-offset-1 outline-border shadow-[0_4px_0_var(--color-border)]'
   return (
     <article
-      className={`flex h-[128px] w-full shrink-0 overflow-hidden rounded-[22px] bg-bg outline-solid ${frame} @desk:h-auto @desk:w-[328px] @desk:flex-col`}
+      className={`flex h-[128px] w-full shrink-0 overflow-hidden rounded-[22px] bg-bg outline-solid ${frame} @desk:h-auto @desk:w-full @desk:flex-col`}
     >
-      <div className="relative size-[128px] shrink-0 @desk:h-[184px] @desk:w-full">
+      <div className="relative size-[128px] shrink-0 @desk:aspect-video @desk:h-auto @desk:w-full">
         <img src={e.thumbnail} alt="" className="size-full object-cover" draggable={false} />
         <span className="absolute top-[10px] left-[10px] flex size-[28px] items-center justify-center rounded-full bg-bg text-[14px] font-extrabold text-text shadow-[0_2px_8px_#0000001F] @desk:top-[16px] @desk:left-[16px] @desk:size-[36px] @desk:text-[16px]">
           {number}
@@ -62,7 +62,9 @@ export function ExperienceTab({ experiences }: { experiences: Experience[] }) {
             Everything you've learned with PrimerEd, saved on this device.
           </p>
         </header>
-        <div className="flex w-full flex-col gap-[16px] @desk:flex-row @desk:flex-wrap @desk:gap-[24px]">
+        {/* Desktop: as many columns as fit, each at least 300px (328px beside the side panel at
+            1440, as designed), so the row always fills the width, with or without the panel. */}
+        <div className="flex w-full flex-col gap-[16px] @desk:grid @desk:grid-cols-[repeat(auto-fill,minmax(300px,1fr))] @desk:gap-[24px]">
           {experiences.map((e, i) => (
             <Card key={e.id} experience={e} number={i + 1} />
           ))}
