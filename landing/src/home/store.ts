@@ -109,7 +109,15 @@ export class HomeStore {
     if (text === line.text) return
     const extend = (chunks: string[]) => (text.startsWith(line.text) ? [...chunks, text.slice(line.text.length)] : [text])
     const { thread, caption, view } = this.state
-    if (view === 'home' && line.turnId !== null) {
+    if (view === 'home' && line.turnId !== null && thread.at(-1)?.id !== line.turnId && text.startsWith(line.text)) {
+      // Something came in under this line while the AI waited on a function (e.g. the
+      // stepper): Gemini carries on the same turn, but the rest is a new turn below it.
+      const rest = text.slice(line.text.length).trim()
+      if (rest) {
+        this.say(rest)
+        line.turnId = this.state.thread.at(-1)!.id
+      }
+    } else if (view === 'home' && line.turnId !== null) {
       this.set({ thread: thread.map((t) => (t.id === line.turnId && t.kind === 'ai' ? { ...t, chunks: extend(t.chunks) } : t)) })
     } else if (view !== 'home' && caption && caption.id === line.captionId) {
       this.set({ caption: { ...caption, chunks: extend(caption.chunks) } })
