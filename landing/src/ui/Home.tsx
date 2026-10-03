@@ -1,4 +1,5 @@
 import { AnimatePresence, motion } from 'motion/react'
+import { useLayoutEffect, useState, type CSSProperties } from 'react'
 import type { HomeState } from '../home/types'
 import { ExperienceTab } from './ExperienceTab'
 import { Glow } from './Glow'
@@ -34,12 +35,24 @@ function Page({ state }: { state: HomeState }) {
  * the mobile layout in a centred column; `@desk:` (≥1025px) is the desktop
  * design with the side panel. Must sit inside an `@container` element.
  *
- * Layout, top to bottom: the page (thread, Experience tab or level path),
- * then the dock: floating caption, voice bar, and the tab bar (mobile and
- * tablet) or the disclaimer.
+ * Layout: the page (thread, Experience tab or level path) fills the screen,
+ * and the dock floats over its bottom: floating caption, voice bar, and the
+ * tab bar (mobile and tablet) or the disclaimer. Pages pad their bottom by
+ * the dock's height (`--dock`), so content can scroll under the caption and
+ * fade out behind the voice bar instead of stopping at a hard edge.
  */
 export function Home({ state, onStart, onStop, onStartOver }: Props) {
   const stopped = state.phase === 'stopped'
+  // The dock mounts after the welcome screen's exit, so track it with a callback ref.
+  const [dock, setDock] = useState<HTMLDivElement | null>(null)
+  const [dockHeight, setDockHeight] = useState(0)
+
+  useLayoutEffect(() => {
+    if (!dock) return
+    const ro = new ResizeObserver(() => setDockHeight(dock.offsetHeight))
+    ro.observe(dock)
+    return () => ro.disconnect()
+  }, [dock])
 
   return (
     <AnimatePresence mode="wait" initial={false}>
@@ -62,7 +75,7 @@ export function Home({ state, onStart, onStop, onStartOver }: Props) {
         >
           <SidePanel visible={state.shell} view={state.view} badge={state.badge} />
 
-          <main className="relative flex min-w-0 flex-1 flex-col">
+          <main className="relative min-w-0 flex-1" style={{ '--dock': `${dockHeight}px` } as CSSProperties}>
             {/* Warm glow behind the voice bar; it goes out when the session stops. */}
             {/* Mobile: behind the thread. Desktop: over the bottom fade, as designed. */}
             <div
@@ -74,7 +87,7 @@ export function Home({ state, onStart, onStop, onStartOver }: Props) {
               />
             </div>
 
-            <div className="relative z-10 min-h-0 flex-1">
+            <div className="absolute inset-0 z-10">
               <AnimatePresence mode="wait" initial={false}>
                 <motion.div
                   key={state.view === 'path' ? `path-${state.openId}` : state.view}
@@ -89,14 +102,17 @@ export function Home({ state, onStart, onStop, onStartOver }: Props) {
               </AnimatePresence>
             </div>
 
-            {/* Desktop: content fades out behind the voice bar. */}
+            {/* Content scrolling under the dock dissolves from a little above the
+                caption: no box behind the caption, and no text clashing with it.
+                Without a caption it stays below the thread's newest line. */}
             <div
               aria-hidden
-              className="pointer-events-none absolute inset-x-0 bottom-0 z-10 hidden h-[184px] bg-linear-to-b from-bg/0 to-bg to-45% @desk:block"
+              className={`pointer-events-none absolute inset-x-0 bottom-0 z-[12] bg-linear-to-b from-bg/0 via-bg/90 via-20% to-bg to-32% ${state.caption ? 'h-[calc(var(--dock)+40px)]' : 'h-[calc(var(--dock)+16px)]'}`}
             />
 
             <motion.div
-              className="relative z-20 mx-auto flex w-full flex-col items-center px-[16px] pb-[16px] @tab:max-w-[672px] @desk:max-w-[880px] @desk:px-[40px] @desk:pb-[20px]"
+              ref={setDock}
+              className="absolute inset-x-0 bottom-0 z-20 mx-auto flex w-full flex-col items-center px-[16px] pb-[16px] @tab:max-w-[672px] @desk:max-w-[880px] @desk:px-[40px] @desk:pb-[20px]"
               initial={{ y: 40, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ duration: 0.45, ease: [0.2, 0.8, 0.2, 1], delay: 0.1 }}

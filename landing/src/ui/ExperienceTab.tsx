@@ -55,7 +55,7 @@ function Card({ experience: e, number }: { experience: Experience; number: numbe
 export function ExperienceTab({ experiences }: { experiences: Experience[] }) {
   return (
     <div className="no-scrollbar h-full overflow-y-auto overscroll-contain">
-      <div className="mx-auto flex w-full flex-col gap-[18px] px-[20px] pt-[28px] pb-[16px] @tab:max-w-[640px] @desk:mx-0 @desk:max-w-none @desk:gap-[36px] @desk:pt-[72px] @desk:pr-[40px] @desk:pl-[72px]">
+      <div className="mx-auto flex w-full flex-col gap-[18px] px-[20px] pt-[28px] pb-[calc(var(--dock)+16px)] @tab:max-w-[640px] @desk:mx-0 @desk:max-w-none @desk:gap-[36px] @desk:pt-[72px] @desk:pr-[40px] @desk:pl-[72px]">
         <header className="flex flex-col gap-[4px] @desk:gap-[8px]">
           <h1 className="text-[30px] font-extrabold text-text @desk:text-[40px] @desk:tracking-[-0.5px]">Experience</h1>
           <p className="text-[15px] leading-[21px] font-semibold text-text-secondary @desk:text-[17px] @desk:leading-normal">

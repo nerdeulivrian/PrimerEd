@@ -1,5 +1,5 @@
 import { Square } from 'lucide-react'
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import type { Generation, Turn } from '../home/types'
 import { SpokenText } from './SpokenText'
 import { Stepper } from './Stepper'
@@ -46,44 +46,26 @@ export function Thread({ thread, generation }: { thread: Turn[]; generation: Gen
   const scroller = useRef<HTMLDivElement>(null)
   const content = useRef<HTMLDivElement>(null)
   const [overflowing, setOverflowing] = useState(false)
-  const stick = useRef(true)
-  // Scroll events from our own smooth scrolling don't count as the learner's.
-  const autoUntil = useRef(0)
 
-  // Follow the newest turn unless the learner has scrolled up to reread.
+  // Show the top fade only once older turns have scrolled off the top.
   useLayoutEffect(() => {
     const el = scroller.current
     const inner = content.current
     if (!el || !inner) return
-    el.scrollTop = el.scrollHeight
-    const ro = new ResizeObserver(() => {
-      setOverflowing(el.scrollHeight > el.clientHeight + 1)
-      if (!stick.current) return
-      autoUntil.current = performance.now() + 700
-      el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
-    })
-    ro.observe(inner)
+    const ro = new ResizeObserver(() => setOverflowing(inner.offsetHeight > el.clientHeight + 1))
+    // Border box: the bottom padding grows with the dock.
+    ro.observe(inner, { box: 'border-box' })
     ro.observe(el)
     return () => ro.disconnect()
   }, [])
 
-  useEffect(() => {
-    const el = scroller.current
-    if (!el) return
-    const onScroll = () => {
-      if (performance.now() < autoUntil.current) return
-      stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80
-    }
-    el.addEventListener('scroll', onScroll, { passive: true })
-    return () => el.removeEventListener('scroll', onScroll)
-  }, [])
-
   return (
     <div className="relative h-full">
-      <div ref={scroller} className="no-scrollbar h-full overflow-y-auto overscroll-contain">
-        <div className="flex min-h-full flex-col justify-end px-[20px] pt-[24px] pb-[24px] @desk:px-[40px] @desk:pt-[72px] @desk:pb-[40px]">
+      {/* column-reverse keeps the scroll pinned to the bottom as turns arrive and
+          as the dock grows (e.g. when the tab bar appears), with no JS. */}
+      <div ref={scroller} className="no-scrollbar flex h-full flex-col-reverse overflow-y-auto overscroll-contain">
+        <div ref={content} className="px-[20px] pt-[24px] pb-[calc(var(--dock)+24px)] @desk:px-[40px] @desk:pt-[72px] @desk:pb-[calc(var(--dock)+40px)]">
           <div
-            ref={content}
             className="mx-auto flex w-full flex-col gap-[24px] @tab:max-w-[600px] @desk:max-w-[760px] @desk:gap-[36px]"
           >
             {thread.map((turn) => (

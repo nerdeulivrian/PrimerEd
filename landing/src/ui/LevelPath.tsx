@@ -31,7 +31,7 @@ export function LevelPath({ experience: e }: { experience: Experience }) {
 
   return (
     <div className="no-scrollbar h-full overflow-y-auto overscroll-contain">
-      <div className="mx-auto flex w-full flex-col gap-[16px] px-[20px] pt-[28px] pb-[16px] @tab:max-w-[640px] @desk:max-w-[840px] @desk:gap-[64px] @desk:px-[40px] @desk:pt-[52px]">
+      <div className="mx-auto flex w-full flex-col gap-[16px] px-[20px] pt-[28px] pb-[calc(var(--dock)+16px)] @tab:max-w-[640px] @desk:max-w-[840px] @desk:gap-[64px] @desk:px-[40px] @desk:pt-[52px]">
         <header className="flex w-full flex-col gap-[12px] @desk:gap-[14px]">
           <nav aria-label="Breadcrumb" className="flex items-center gap-[8px] text-[14px] @desk:text-[15px]">
             <span className="font-bold text-text-secondary">Experience</span>
