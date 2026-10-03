@@ -84,43 +84,47 @@ export class LessonLive {
     this.listeners.forEach((l) => l())
   }
 
-  /** Loads the level; starts it too when no tap is needed for sound. */
+  /**
+   * If the browser allows sound without a tap, starts straight away (the lesson
+   * comes with the session). Otherwise shows the level and waits for START.
+   */
   async load() {
+    if (soundAllowed()) return this.tapStart()
     try {
       const { lesson } = await api.launch(this.code)
       this.store.load(lesson)
+      this.onStatus({ kind: 'ready' })
     } catch (err) {
       this.onStatus({ kind: 'error', text: (err as Error).message })
-      return
     }
-    this.onStatus({ kind: 'ready' })
-    if (soundAllowed()) this.tapStart()
   }
 
-  /** START: the one tap, so the browser allows the mic and sound. */
+  /** START (or no tap needed): opens the mic and the session. */
   tapStart() {
     if (this.started) return
     this.started = true
-    this.store.tapStart()
     void this.start()
   }
 
   private async start() {
     try {
-      const mic = await Voice.openMic()
-      let session
-      try {
-        session = await api.start(this.code)
-      } catch (err) {
-        mic.close()
-        throw err
+      // The mic and the session at once. The tutor is usually up already: openLevel started it.
+      const [mic, started] = await Promise.allSettled([Voice.openMic(), api.start(this.code)])
+      if (mic.status === 'rejected' || started.status === 'rejected') {
+        if (mic.status === 'fulfilled') mic.value.close()
+        if (started.status === 'fulfilled') api.stop(started.value.sessionId)
+        throw mic.status === 'rejected' ? mic.reason : (started as PromiseRejectedResult).reason
       }
+      const session = started.value
+      this.store.load(session.lesson)
+      this.store.tapStart()
+      this.onStatus({ kind: 'ready' })
       this.sessionId = session.sessionId
       this.backUrl = session.backUrl
       this.events = api.events(session.sessionId)
       this.listen(this.events)
       this.voice = new Voice((m) => this.onAgent(m))
-      await this.voice.join(session.rtc, mic)
+      await this.voice.join(session.rtc, mic.value)
     } catch (err) {
       console.error(err)
       await this.end()

@@ -34,8 +34,9 @@ function isTyping(target: EventTarget | null) {
 
 /** While the live lesson loads, if it can't start, and on the way back after EXIT. */
 function LiveNotice({ status }: { status: Exclude<LiveStatus, { kind: 'ready' }> }) {
-  const text =
-    status.kind === 'loading' ? 'Getting your lesson ready…' : status.kind === 'leaving' ? 'Back to your levels…' : status.text
+  // Loading is short (the tutor is usually up already): a blank page, not a flash of text.
+  if (status.kind === 'loading') return <div className="h-full bg-bg" />
+  const text = status.kind === 'leaving' ? 'Back to your levels…' : status.text
   return (
     <div className="flex h-full flex-col items-center justify-center gap-[16px] px-[15px] text-center">
       <p className={`text-[16px] font-bold text-text-secondary ${status.kind === 'error' ? '' : 'animate-pulse'}`}>{text}</p>
@@ -69,10 +70,15 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
+  // Live: the lesson opens on its first step. The tutor greets over it, and
+  // start_lesson keeps it there.
+  const screen =
+    live && snapshot.screen.phase === 'awake' ? { ...snapshot.screen, phase: 'lesson' as const } : snapshot.screen
+
   const player = () => (
     status.kind === 'ready' ? (
       <LessonPlayer
-        session={snapshot.screen}
+        session={screen}
         pressed={snapshot.pressed}
         onStart={() => (live ? live.tapStart() : store.tapStart())}
       />
