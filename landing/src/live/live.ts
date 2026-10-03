@@ -3,8 +3,19 @@ import type { Experience, Generation, View } from '../home/types'
 import { api } from './api'
 import { Voice, type AgentMessage } from './voice'
 
-/** Transcript text without Gemini's markers, e.g. "<no speech>" or "{pause}". */
-const spoken = (text: string) => text.replace(/<[^>]*>|\{[^}]*\}/g, ' ').replace(/\s+/g, ' ').trim()
+/** Transcript text without Gemini's markers, e.g. "<no speech>" or "{pause}" (or one still arriving, "<no"). */
+const spoken = (text: string) =>
+  text.replace(/<[^>]*>|\{[^}]*\}|[<{][^>}]*$/g, ' ').replace(/\s+/g, ' ').trim()
+
+type HomeSession = Awaited<ReturnType<typeof api.startHome>>
+
+/**
+ * The agent takes ~1.3 s to start, so it's started while the welcome screen
+ * shows, and the orb tap just joins it (its greeting waits for the join).
+ * Agora drops an agent alone in its channel after 30 s, so a warm one older
+ * than this is swapped for a new one.
+ */
+const WARM_MAX_MS = 20_000
 
 interface ToolCall {
   callId: string
@@ -32,34 +43,69 @@ export class Live {
   /** Set by openLevel: where to go once the AI has said its last line. */
   private launch: { url: string; timer: number; spoke: boolean } | null = null
   private agentSpeaking = false
+  /** An agent started ahead of the tap (see WARM_MAX_MS). */
+  private warm: { at: number; session: Promise<HomeSession>; id?: string } | null = null
 
   constructor(store: HomeStore) {
     this.store = store
     window.addEventListener('pagehide', () => {
       if (this.sessionId) api.stopBeacon(this.sessionId)
+      if (this.warm?.id) api.stopBeacon(this.warm.id)
     })
+    // Keep one ready while the learner is still on the welcome screen.
+    const rewarm = () => {
+      if (this.store.getSnapshot().phase === 'welcome' && document.visibilityState === 'visible') this.warmUp()
+    }
+    document.addEventListener('pointerover', rewarm, { passive: true })
+    document.addEventListener('visibilitychange', rewarm)
   }
 
-  /** The learner's saved experiences, on load. */
+  /** The learner's saved experiences, on load; then an agent is started for the tap. */
   async load() {
     try {
       this.store.setExperiences(await api.experiences())
     } catch (err) {
       console.warn('Could not load experiences:', err)
     }
+    this.warmUp()
+  }
+
+  private warmUp() {
+    if (this.warm && Date.now() - this.warm.at < WARM_MAX_MS) return
+    this.dropWarm()
+    const warm: NonNullable<typeof this.warm> = { at: Date.now(), session: api.startHome() }
+    warm.session.then((s) => (warm.id = s.sessionId)).catch(() => {})
+    this.warm = warm
+  }
+
+  private dropWarm() {
+    this.warm?.session.then((s) => api.stop(s.sessionId)).catch(() => {})
+    this.warm = null
+  }
+
+  /** The warm agent if it's fresh enough, else a new one. */
+  private takeSession(): Promise<HomeSession> {
+    const warm = this.warm
+    this.warm = null
+    if (warm && Date.now() - warm.at < WARM_MAX_MS) return warm.session.catch(() => api.startHome())
+    if (warm) warm.session.then((s) => api.stop(s.sessionId)).catch(() => {})
+    return api.startHome()
   }
 
   /** Call from the tap (orb or Start over), so the browser allows the mic and sound. */
   async start() {
     const run = ++this.run
     try {
-      const mic = await Voice.openMic()
-      const { sessionId, rtc } = await api.startHome()
-      if (run !== this.run) {
-        mic.close()
-        api.stop(sessionId)
-        return
+      // The mic and the session at once (the session is usually up already).
+      const [opened, started] = await Promise.allSettled([Voice.openMic(), this.takeSession()])
+      if (opened.status === 'rejected' || started.status === 'rejected' || run !== this.run) {
+        if (opened.status === 'fulfilled') opened.value.close()
+        if (started.status === 'fulfilled') api.stop(started.value.sessionId)
+        if (run !== this.run) return
+        throw opened.status === 'rejected' ? opened.reason : (started as PromiseRejectedResult).reason
       }
+      const mic = opened.value
+      const { sessionId, rtc } = started.value
       this.sessionId = sessionId
       this.events = api.events(sessionId)
       this.listen(this.events)
