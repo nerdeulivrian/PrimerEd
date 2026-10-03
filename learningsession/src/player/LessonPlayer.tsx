@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { currentStep } from '../session/engine'
 import type { SessionState } from '../session/state'
 import type { Pressed } from '../session/store'
-import { BottomSheet, ExitPanel, ProgressBar, type SheetContent } from './BottomArea'
+import { BottomSheet, exitPanelHeight, type SheetContent } from './BottomArea'
 import { EntryScreen } from './EntryScreen'
 import { ExperienceComplete } from './ExperienceComplete'
 import { MultipleChoice } from './MultipleChoice'
@@ -38,8 +38,9 @@ function StepBody({ session }: { session: SessionState }) {
 }
 
 /**
- * The lesson screen: a body with the bottom sheet (progress bar plus feedback
- * panel) laid over its lower edge. Nothing in here is clickable except START.
+ * The lesson screen: a body with the bottom sheet (progress bar plus the
+ * feedback or EXIT panel) laid over its lower edge. Nothing in here is
+ * clickable except START.
  * Must sit inside an `@container` element: breakpoints are container queries.
  */
 export function LessonPlayer({ session, pressed, onStart }: Props) {
@@ -49,11 +50,16 @@ export function LessonPlayer({ session, pressed, onStart }: Props) {
   const tone: Tone = result ? (result.correct ? 'correct' : 'incorrect') : 'normal'
   const fraction = (session.stepIndex + 1) / lesson.steps.length
 
-  // The panel is up once a question is graded. After PROCEED, the last one is
-  // kept (with the bar as it was) while it slides back down.
-  const open: SheetContent | null =
-    step && result && step.type !== 'slide'
+  const summary = phase === 'complete' ? session.summary : null
+
+  // Feedback is up once a question is graded; EXIT is up on Experience
+  // Complete. When that changes, the old panel is kept (with the bar as it
+  // was) while it slides down, and only then does the new one rise.
+  const open: SheetContent | null = summary
+    ? { kind: 'exit', key: 'exit', tier: summary.tier, tone: tierStyle[summary.tier].bar, fraction: 1 }
+    : step && result && step.type !== 'slide'
       ? {
+          kind: 'feedback',
           key: step.id,
           correct: result.correct,
           explanation: result.correct ? step.feedback.correct : step.feedback.incorrect,
@@ -64,8 +70,8 @@ export function LessonPlayer({ session, pressed, onStart }: Props) {
   const [shown, setShown] = useState<SheetContent | null>(null)
   const [closing, setClosing] = useState<SheetContent | null>(null)
   if (open?.key !== shown?.key) {
-    const leaving = phase === 'lesson' || phase === 'complete'
-    setClosing(shown && !open && leaving ? shown : null)
+    if (phase !== 'lesson' && phase !== 'complete') setClosing(null)
+    else if (shown) setClosing(shown)
     setShown(open)
   }
 
@@ -77,8 +83,6 @@ export function LessonPlayer({ session, pressed, onStart }: Props) {
     )
   }
 
-  const summary = phase === 'complete' ? session.summary : null
-
   return (
     <MotionConfig reducedMotion="user">
       <div className="relative flex h-full w-full flex-col overflow-hidden bg-bg font-main">
@@ -89,8 +93,9 @@ export function LessonPlayer({ session, pressed, onStart }: Props) {
                 <ExperienceComplete info={lesson.lesson} summary={summary} />
               </div>
             </div>
-            <ProgressBar fraction={1} tone={tierStyle[summary.tier].bar} />
-            <ExitPanel tier={summary.tier} pressed={pressed === 'exit'} />
+            {/* Room for the progress bar and the EXIT panel, which live in the bottom sheet. */}
+            <div className="h-[10px] shrink-0" />
+            <div className={`shrink-0 ${exitPanelHeight}`} />
           </>
         ) : (
           step && (
@@ -114,17 +119,14 @@ export function LessonPlayer({ session, pressed, onStart }: Props) {
           )
         )}
 
-        {/* On Experience Complete the sheet only stays while the last panel drops. */}
-        {(!summary || closing) && (
-          <BottomSheet
-            key="sheet"
-            content={open ?? closing}
-            open={open !== null}
-            bar={{ fraction, tone }}
-            pressed={pressed === 'proceed'}
-            onClosed={() => setClosing(null)}
-          />
-        )}
+        <BottomSheet
+          key="sheet"
+          open={open}
+          closing={closing}
+          bar={{ fraction, tone }}
+          pressed={pressed}
+          onClosed={() => setClosing(null)}
+        />
       </div>
     </MotionConfig>
   )

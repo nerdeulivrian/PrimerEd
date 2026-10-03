@@ -1,5 +1,6 @@
 import { motion } from 'motion/react'
 import type { Tier } from '../session/state'
+import type { Pressed } from '../session/store'
 import { CheckMark, CrossMark } from './icons'
 import { tierStyle, type Tone } from './styles'
 
@@ -74,17 +75,15 @@ export function FeedbackPanel({
 
   return (
     <div role="status" className={`w-full ${tone.panel}`}>
-      {/* Mobile: explanation strip above an 80px button row */}
-      <div className="@tab:hidden">
-        <div className="flex h-[50px] items-center gap-[15px] overflow-hidden px-[20px]">
+      {/* Mobile: explanation row with PROCEED right under it; grows with longer text */}
+      <div className="flex flex-col gap-[12px] px-[20px] pt-[15px] pb-[20px] @tab:hidden">
+        <div className="flex items-center gap-[15px]">
           <div className="flex size-[30px] shrink-0 items-center justify-center rounded-full bg-bg">
             <Mark className={`size-[20px] ${markColor}`} />
           </div>
           <p className={`min-w-0 flex-1 text-[10px] font-medium ${tone.text}`}>{explanation}</p>
         </div>
-        <div className="flex h-[80px] items-center p-[20px]">
-          <ActionButton label="PROCEED" color={tone.button} wide pressed={pressed} />
-        </div>
+        <ActionButton label="PROCEED" color={tone.button} wide pressed={pressed} />
       </div>
 
       {/* Tablet and desktop */}
@@ -101,55 +100,63 @@ export function FeedbackPanel({
   )
 }
 
+/** The EXIT panel's height. Experience Complete reserves this space in its layout. */
+export const exitPanelHeight = 'h-[80px] @tab:h-[140px]'
+
 /** Experience Complete keeps a white bottom panel holding a single EXIT button. */
 export function ExitPanel({ tier, pressed }: { tier: Tier; pressed?: boolean }) {
   return (
-    <div className="flex h-[80px] w-full items-center justify-end bg-bg p-[20px] @tab:h-[140px] @tab:px-[40px] @tab:py-0 @desk:px-[260px]">
+    <div
+      className={`flex w-full items-center justify-end bg-bg p-[20px] @tab:px-[40px] @tab:py-0 @desk:px-[260px] ${exitPanelHeight}`}
+    >
       <ActionButton label="EXIT" color={tierStyle[tier].button} pressed={pressed} />
     </div>
   )
 }
 
-/** One graded question's panel, plus the progress bar as it looked then. */
-export interface SheetContent {
-  key: string
-  correct: boolean
-  explanation: string
-  tone: Tone
-  fraction: number
-}
+/** What the bottom sheet holds, plus the progress bar as it looked then. */
+export type SheetContent = { key: string; tone: Tone; fraction: number } & (
+  | { kind: 'feedback'; correct: boolean; explanation: string }
+  | { kind: 'exit'; tier: Tier }
+)
 
 const RISE = { duration: 0.25, ease: [0.22, 1, 0.36, 1] } as const
 const DROP = { duration: 0.2, ease: [0.4, 0, 1, 1] } as const
 
 /**
- * The progress bar riding on top of the feedback panel, laid over the bottom
- * of the screen. The panel slides up from below the bottom edge and back down
- * past it as one solid piece (a transform, so nothing gets clipped), and the
- * bar sits on its top edge the whole way. Nothing above it moves.
+ * The progress bar riding on top of a bottom panel (feedback or EXIT), laid
+ * over the bottom of the screen. The panel slides up from below the bottom
+ * edge and back down past it as one solid piece (a transform, so nothing gets
+ * clipped), and the bar sits on its top edge the whole way.
+ * When the panel changes (feedback -> EXIT), the old one goes all the way down
+ * first, then the new one rises.
  */
 export function BottomSheet({
-  content,
   open,
+  closing,
   bar,
   pressed,
   onClosed,
 }: {
-  /** The panel to show: open, or on its way down. */
-  content: SheetContent | null
-  open: boolean
+  /** The panel that should be up, if any. */
+  open: SheetContent | null
+  /** The previous panel, on its way down. Shown before `open`. */
+  closing: SheetContent | null
   /** The bar when no panel is up. */
   bar: { fraction: number; tone: Tone }
-  pressed?: boolean
+  pressed?: Pressed | null
   onClosed: () => void
 }) {
+  const content = closing ?? open
+  const up = !closing && open !== null
+
   return (
     <motion.div
       className="absolute inset-x-0 bottom-0 z-10"
-      // Mounting mid-close (e.g. the switch to Experience Complete) still drops from the top.
-      initial={!open && content ? { y: '0%' } : false}
-      animate={{ y: open ? '0%' : '100%' }}
-      transition={open ? RISE : DROP}
+      // Mounting mid-close (e.g. after switching device frames) still drops from the top.
+      initial={closing ? { y: '0%' } : false}
+      animate={{ y: up ? '0%' : '100%' }}
+      transition={up ? RISE : DROP}
       onAnimationComplete={(target) => {
         if (typeof target === 'object' && !Array.isArray(target) && target.y === '100%') onClosed()
       }}
@@ -157,9 +164,15 @@ export function BottomSheet({
       <div className="absolute inset-x-0 bottom-full">
         <ProgressBar fraction={content?.fraction ?? bar.fraction} tone={content?.tone ?? bar.tone} />
       </div>
-      {content && (
-        <FeedbackPanel key={content.key} correct={content.correct} explanation={content.explanation} pressed={pressed} />
+      {content?.kind === 'feedback' && (
+        <FeedbackPanel
+          key={content.key}
+          correct={content.correct}
+          explanation={content.explanation}
+          pressed={up && pressed === 'proceed'}
+        />
       )}
+      {content?.kind === 'exit' && <ExitPanel key={content.key} tier={content.tier} pressed={up && pressed === 'exit'} />}
     </motion.div>
   )
 }
