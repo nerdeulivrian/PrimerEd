@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react'
 import { solarSystem, status } from './data'
-import type { Experience, Generation, HomeState, Turn, View } from './types'
+import type { Caption, Experience, Generation, HomeState, Turn, View } from './types'
 
 export function initialState(experiences: Experience[] = [solarSystem]): HomeState {
   return {
@@ -105,21 +105,44 @@ export class HomeStore {
    */
   aiText(key: string, text: string) {
     const line = this.aiLine
-    if (line?.key !== key) {
-      this.say(text)
-      const last = this.state.thread.at(-1)
-      this.aiLine = { key, text, turnId: this.state.view === 'home' && last ? last.id : null, captionId: this.state.caption?.id ?? null }
-      return
-    }
+    if (line?.key !== key) return this.startLine(key, text)
     if (text === line.text) return
     const extend = (chunks: string[]) => (text.startsWith(line.text) ? [...chunks, text.slice(line.text.length)] : [text])
-    const { thread, caption } = this.state
-    if (line.turnId !== null) {
+    const { thread, caption, view } = this.state
+    if (view === 'home' && line.turnId !== null) {
       this.set({ thread: thread.map((t) => (t.id === line.turnId && t.kind === 'ai' ? { ...t, chunks: extend(t.chunks) } : t)) })
-    } else if (caption && caption.id === line.captionId) {
+    } else if (view !== 'home' && caption && caption.id === line.captionId) {
       this.set({ caption: { ...caption, chunks: extend(caption.chunks) } })
+    } else {
+      // The page changed partway through the line (a tab opened while the AI was talking):
+      // carry on where it can be seen.
+      return this.startLine(key, text)
     }
     line.text = text
+  }
+
+  /** A new AI line: a turn in the conversation (Home) or a caption (elsewhere). */
+  private startLine(key: string, text: string) {
+    this.say(text)
+    const last = this.state.thread.at(-1)
+    const home = this.state.view === 'home'
+    this.aiLine = { key, text, turnId: home && last ? last.id : null, captionId: home ? null : (this.state.caption?.id ?? null) }
+  }
+
+  /**
+   * Opening a page clears the caption, unless the AI is partway through a line:
+   * then the line so far carries over as the new page's caption. (The function
+   * call that opens a page usually lands mid-line: the audio runs behind it.)
+   */
+  private carriedCaption(): Caption | null {
+    const line = this.aiLine
+    if (!line || !this.state.speaking) return null
+    // Already a caption (e.g. Experience tab → level path): it stays as it is.
+    if (this.state.caption && this.state.caption.id === line.captionId) return this.state.caption
+    const caption = { id: this.nextId++, chunks: [line.text], animate: false }
+    line.turnId = null
+    line.captionId = caption.id
+    return caption
   }
 
   /** What the agent is doing, as Agora reports it: drives the voice bar. */
@@ -191,7 +214,7 @@ export class HomeStore {
   openTab(view: Exclude<View, 'path'>) {
     this.set({
       view,
-      caption: null,
+      caption: view === 'home' ? null : this.carriedCaption(),
       // The side panel (tab bar on mobile) comes in with the Experience tab, also for a learner
       // with saved experiences who hasn't made one this session.
       shell: view === 'experience' || this.state.shell,
@@ -201,7 +224,7 @@ export class HomeStore {
   }
 
   openExperience(id: string) {
-    this.set({ view: 'path', openId: id, caption: null, badge: false, shell: true })
+    this.set({ view: 'path', openId: id, caption: this.carriedCaption(), badge: false, shell: true })
   }
 
   /** Stop ends the voice session (MVP: no resuming). `text` replaces "You stopped the conversation". */
