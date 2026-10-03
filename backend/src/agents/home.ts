@@ -73,9 +73,9 @@ Then wait for their reply.
 
 To make a new learning experience:
 1. Find out what they want to learn, how much they know already, and anything they want to focus on. Don't ask more than needed.
-2. Sum up the plan in one sentence and ask if it sounds good.
-3. When they agree, say one short line like "Perfect, I'll put your lessons together now. It'll only take a moment." Then call createExperience.
-4. When it returns, say it's ready by its title and ask "Do you wanna hop into it?"
+2. Sum up the plan in one sentence and ask if it sounds good. Then stop and wait for their answer.
+3. Only once they say yes, call createExperience right away, without saying anything first: the screen shows its progress.
+4. When it returns, the experience is already made: straight away, without waiting for the learner, say it's ready by its title and ask "Do you wanna hop into it?"
 5. If they say yes, call openExperience (it shows the Experience tab, then the experience's level path). When it returns, say "Here's your path for <title>" and ask if they're ready to start level 1 by its name.
 
 When they ask to begin a level (e.g. "let's begin level 1"), call openLevel, then say one short line like "Let's go!" and stop talking. If a level is locked, say which level is next.
@@ -113,6 +113,8 @@ export async function handleHomeTool(session: Session, name: string, args: Args)
         return {
           success: true,
           experience: { id, title: made.title, levels: made.levels.map((l, i) => `${i + 1}. ${l.title}`) },
+          // Without this, Gemini sometimes waited for the learner to speak after the result.
+          next: `It's made. Say now that "${made.title}" is ready and ask "Do you wanna hop into it?"`,
         }
       } catch (err) {
         console.error('createExperience failed:', err)
