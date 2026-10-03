@@ -62,7 +62,7 @@
   }
 }
 
-/* A spoken word appearing as the AI says it. */
+/* A piece of the AI's streamed transcript arriving. */
 @keyframes word-in {
   from {
     opacity: 0;
@@ -75,7 +75,7 @@
 }
 
 @utility animate-word {
-  animation: word-in 220ms ease-out both;
+  animation: word-in 280ms ease-out both;
 }
 
 /* A new turn in the thread (learner bubble, stepper, divider). */

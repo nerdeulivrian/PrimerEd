@@ -128,7 +128,7 @@ export function Home({ state, onStart, onStop, onStartOver }: Props) {
                     exit={{ opacity: 0 }}
                     transition={{ duration: 0.25 }}
                   >
-                    <SpokenText text={state.caption.text} wordMs={state.caption.wordMs} />
+                    <SpokenText chunks={state.caption.chunks} animate={state.caption.animate} />
                   </motion.p>
                 )}
               </AnimatePresence>

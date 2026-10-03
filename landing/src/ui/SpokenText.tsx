@@ -1,17 +1,20 @@
 interface Props {
-  text: string
-  /** Delay between words. 0 shows the text at once. */
-  wordMs: number
+  chunks: string[]
+  /** Fade each piece in as it arrives. */
+  animate: boolean
 }
 
-/** Text the AI is saying: the words appear one by one, as they're spoken. */
-export function SpokenText({ text, wordMs }: Props) {
-  if (!wordMs) return <>{text}</>
+/**
+ * Text the AI is saying, as its live transcript streams in: each new piece
+ * fades in at the end. Earlier pieces keep their keys, so they don't replay.
+ */
+export function SpokenText({ chunks, animate }: Props) {
+  if (!animate) return <>{chunks.join('')}</>
   return (
     <>
-      {text.split(' ').map((word, i) => (
-        <span key={i} className="motion-safe:animate-word" style={{ animationDelay: `${i * wordMs}ms` }}>
-          {word}{' '}
+      {chunks.map((chunk, i) => (
+        <span key={i} className="motion-safe:animate-word">
+          {chunk}
         </span>
       ))}
     </>

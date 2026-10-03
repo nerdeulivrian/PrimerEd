@@ -2,9 +2,6 @@ import { useSyncExternalStore } from 'react'
 import { solarSystem, status } from './data'
 import type { Experience, Generation, HomeState, Turn, View } from './types'
 
-/** How long one spoken word takes at 1× speed (about 200 words a minute). */
-export const WORD_MS = 300
-
 export function initialState(): HomeState {
   return {
     phase: 'welcome',
@@ -33,7 +30,7 @@ export class HomeStore {
   private state = initialState()
   private listeners = new Set<() => void>()
   private nextId = 1
-  /** Playback speed of the demo; spoken words reveal faster too. */
+  /** Playback speed of the demo script. */
   speed = 1
 
   setSpeed(speed: number) {
@@ -56,24 +53,39 @@ export class HomeStore {
     this.set({ thread: [...this.state.thread, { ...turn, id: this.nextId++ } as Turn] })
   }
 
-  get wordMs() {
-    return WORD_MS / this.speed
-  }
-
   /** The one real tap: the orb on the welcome screen opens the voice session. */
   tapStart() {
     if (this.state.phase !== 'welcome') return
     this.set({ phase: 'live', view: 'home', status: status.listening })
   }
 
-  /** The AI speaks. In the conversation it's a turn; elsewhere a floating caption. */
-  say(text: string) {
-    if (this.state.view === 'home') {
-      this.turn({ kind: 'ai', text, wordMs: this.wordMs })
-      this.set({ speaking: true, status: status.speaking })
+  /**
+   * A piece of what the AI is saying. Speech-to-speech streams its transcript
+   * in pieces (a word or a few) alongside the audio: the first piece of a
+   * reply starts a turn (in the conversation) or a floating caption
+   * (elsewhere), and the rest add on until `listen()`.
+   */
+  stream(chunk: string) {
+    const { view, thread, caption, speaking } = this.state
+    const last = thread.at(-1)
+    if (view === 'home') {
+      if (speaking && last?.kind === 'ai') {
+        this.set({ thread: [...thread.slice(0, -1), { ...last, chunks: [...last.chunks, chunk] }] })
+      } else {
+        this.turn({ kind: 'ai', chunks: [chunk], animate: true })
+      }
+    } else if (speaking && caption) {
+      this.set({ caption: { ...caption, chunks: [...caption.chunks, chunk] } })
     } else {
-      this.set({ caption: { id: this.nextId++, text, wordMs: this.wordMs }, speaking: true, status: status.speaking })
+      this.set({ caption: { id: this.nextId++, chunks: [chunk], animate: true } })
     }
+    this.set({ speaking: true, status: status.speaking })
+  }
+
+  /** A whole line at once, as a new turn or caption (handy from the console). */
+  say(text: string) {
+    this.set({ speaking: false })
+    this.stream(text)
   }
 
   /** The AI has finished talking and waits for the learner. */

@@ -9,7 +9,7 @@ function TurnView({ turn, generation }: { turn: Turn; generation: Generation | n
     case 'ai':
       return (
         <p className="w-full text-[17px] leading-[26px] font-semibold text-text @desk:text-[20px] @desk:leading-[31px]">
-          <SpokenText text={turn.text} wordMs={turn.wordMs} />
+          <SpokenText chunks={turn.chunks} animate={turn.animate} />
         </p>
       )
     case 'learner':

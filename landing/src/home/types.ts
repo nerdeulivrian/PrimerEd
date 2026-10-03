@@ -33,8 +33,11 @@ export interface Generation {
 }
 
 export type Turn =
-  /** `wordMs` > 0 reveals the text word by word as it's spoken; 0 shows it at once. */
-  | { id: number; kind: 'ai'; text: string; wordMs: number }
+  /**
+   * What the AI is saying, in the pieces its live transcript streamed in.
+   * `animate` fades each piece in as it arrives; off for prepared screens.
+   */
+  | { id: number; kind: 'ai'; chunks: string[]; animate: boolean }
   | { id: number; kind: 'learner'; text: string; animate: boolean }
   /** Where the stepper sits in the thread. It draws `HomeState.generation`. */
   | { id: number; kind: 'stepper' }
@@ -44,8 +47,8 @@ export type View = 'home' | 'experience' | 'path'
 
 export interface Caption {
   id: number
-  text: string
-  wordMs: number
+  chunks: string[]
+  animate: boolean
 }
 
 export interface HomeState {

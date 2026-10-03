@@ -1,6 +1,8 @@
 import { algebraBasics, lines, status } from './data'
 import type { HomeStore } from './store'
-import { WORD_MS } from './store'
+
+/** How long one spoken word takes at 1× speed (about 200 words a minute). */
+const WORD_MS = 300
 
 class Cancelled extends Error {}
 
@@ -85,10 +87,17 @@ export class DemoRun {
     }
   }
 
-  /** The AI says a line, then waits until the words have finished appearing. */
+  /**
+   * The AI says a line. Its transcript streams in pieces of 1–4 words, each
+   * arriving after roughly the time the previous one took to say.
+   */
   async say(text: string, then = status.listening) {
-    this.store.say(text)
-    await this.wait(text.split(' ').length * WORD_MS + 300)
+    for (const piece of pieces(text)) {
+      this.store.stream(piece)
+      const words = piece.trim().split(' ').length
+      await this.wait(words * WORD_MS * (0.7 + Math.random() * 0.6))
+    }
+    await this.wait(300)
     this.store.listen(then)
   }
 
@@ -98,6 +107,18 @@ export class DemoRun {
     this.store.heard(text)
     await this.wait(700)
   }
+}
+
+/** Splits a line the way a live transcript arrives: a word or a few at a time. */
+function pieces(text: string): string[] {
+  const words = text.split(' ')
+  const out: string[] = []
+  for (let i = 0; i < words.length; ) {
+    const n = 1 + Math.floor(Math.random() * 4)
+    out.push(words.slice(i, i + n).join(' ') + (i + n < words.length ? ' ' : ''))
+    i += n
+  }
+  return out
 }
 
 /** The whole designed flow: conversation → generating → ready → Experience tab → level path. */

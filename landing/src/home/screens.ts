@@ -10,7 +10,7 @@ export interface DesignedScreen {
 }
 
 let id = 10_000
-const ai = (text: string): Turn => ({ id: id++, kind: 'ai', text, wordMs: 0 })
+const ai = (text: string): Turn => ({ id: id++, kind: 'ai', chunks: [text], animate: false })
 const you = (text: string): Turn => ({ id: id++, kind: 'learner', text, animate: false })
 
 const conversation = (): Turn[] => [
@@ -49,7 +49,7 @@ const experienceTab = (): HomeState => ({
   ...ready(),
   view: 'experience',
   badge: false,
-  caption: { id: id++, text: lines.experienceTab, wordMs: 0 },
+  caption: { id: id++, chunks: [lines.experienceTab], animate: false },
   status: status.opening(algebraBasics.title),
 })
 
@@ -58,7 +58,7 @@ const levelPath = (): HomeState => ({
   view: 'path',
   openId: algebraBasics.id,
   badge: false,
-  caption: { id: id++, text: lines.path, wordMs: 0 },
+  caption: { id: id++, chunks: [lines.path], animate: false },
 })
 
 const stopped = (s: HomeState): HomeState => ({ ...s, phase: 'stopped', caption: null, speaking: false })
