@@ -1,0 +1,162 @@
+@import "tailwindcss";
+
+/*
+ * Design tokens from designLandingScreen.pen (same names as designMain.pen),
+ * plus the literal colours the landing screens use.
+ */
+@theme {
+  --font-main: "Nunito", system-ui, sans-serif;
+
+  --color-primary: #ff9600;
+  --color-primary-dark: #e08600;
+  --color-bg: #ffffff;
+  --color-surface: #f7f7f7;
+  --color-border: #e5e5e5;
+  --color-text: #4b4b4b;
+  --color-text-secondary: #777777;
+  --color-text-muted: #afafaf;
+
+  /* Accent tints: the active tab, Stop, the in-progress step. */
+  --color-peach: #fff0dc;
+  --color-peach-text: #c25e00;
+  --color-bubble: #f2f2f2;
+  --color-node-shadow: #cecece;
+  --color-banner-shadow: #e07020;
+  --color-correct: #58cc02;
+
+  /* Breakpoints, used as container queries (@tab:, @desk:) so the debug
+     view can show every breakpoint inside one browser window.
+     Mobile < 755px, tablet 755–1024px, desktop > 1024px (same as learningsession/). */
+  --container-tab: 755px;
+  --container-desk: 1025px;
+}
+
+@layer base {
+  html,
+  body {
+    height: 100%;
+    overscroll-behavior: none;
+  }
+
+  body {
+    font-family: var(--font-main);
+    color: var(--color-text);
+    line-height: normal;
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+/* The brand gradient used on "ready to learn?", the waveform and progress fills. */
+@utility text-brand-gradient {
+  background-image: linear-gradient(0deg, #ffa41b 0%, #ff7a2f 55%, #f2545b 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* A spoken word appearing as the AI says it. */
+@keyframes word-in {
+  from {
+    opacity: 0;
+    filter: blur(2px);
+  }
+  to {
+    opacity: 1;
+    filter: none;
+  }
+}
+
+@utility animate-word {
+  animation: word-in 220ms ease-out both;
+}
+
+/* A new turn in the thread (learner bubble, stepper, divider). */
+@keyframes turn-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@utility animate-turn {
+  animation: turn-in 320ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+/* Waveform bars: each bar scales around its design height. */
+@keyframes wave {
+  0%,
+  100% {
+    transform: scaleY(var(--wave-lo, 0.45));
+  }
+  50% {
+    transform: scaleY(var(--wave-hi, 1));
+  }
+}
+
+@utility animate-wave {
+  animation: wave var(--wave-ms, 900ms) ease-in-out infinite;
+}
+
+/* The halos around the START orb breathe while waiting for the tap. */
+@keyframes breathe {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.04);
+  }
+}
+
+@utility animate-breathe {
+  animation: breathe 3.2s ease-in-out infinite;
+}
+
+/* The in-progress step's number and the current level's halo. */
+@keyframes ring {
+  0% {
+    box-shadow: 0 0 0 0 #ff960040;
+  }
+  70%,
+  100% {
+    box-shadow: 0 0 0 10px #ff960000;
+  }
+}
+
+@utility animate-ring {
+  animation: ring 1.6s ease-out infinite;
+}
+
+/* Duolingo-style press on the one real tap, like learningsession/'s START. */
+@keyframes press {
+  from,
+  to {
+    transform: translateY(var(--press-depth, 4px));
+    box-shadow: none;
+  }
+}
+
+@utility animate-press {
+  animation: press 120ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
