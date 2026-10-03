@@ -130,7 +130,7 @@ export async function startAgent(opts: AgentOptions): Promise<string> {
           server_vad_config: {
             prefix_padding_ms: 800,
             silence_duration_ms: 640,
-            start_of_speech_sensitivity: 'START_SENSITIVITY_HIGH',
+            start_of_speech_sensitivity: 'START_SENSITIVITY_LOW',
             end_of_speech_sensitivity: 'END_SENSITIVITY_HIGH',
           },
         },
