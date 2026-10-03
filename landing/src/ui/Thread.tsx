@@ -28,7 +28,9 @@ function TurnView({ turn, generation }: { turn: Turn; generation: Generation | n
           <div className="h-px flex-1 bg-border" />
           <div className="flex items-center gap-[8px] rounded-[14px] bg-surface px-[14px] py-[6px] text-text-secondary">
             <Square className="size-[14px]" strokeWidth={2} />
-            <span className="text-[13px] font-bold whitespace-nowrap @desk:text-[14px]">You stopped the conversation</span>
+            <span className="text-[13px] font-bold whitespace-nowrap @desk:text-[14px]">
+              {turn.text ?? 'You stopped the conversation'}
+            </span>
           </div>
           <div className="h-px flex-1 bg-border" />
         </div>

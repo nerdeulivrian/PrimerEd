@@ -3,15 +3,21 @@ import { lazy, Suspense, useEffect, useState } from 'react'
 import { Demo, fullDemo, greetingDemo } from './home/demo'
 import { designedScreens } from './home/screens'
 import { HomeStore, useHome } from './home/store'
+import { API_URL } from './live/api'
+import { Live } from './live/live'
 import { Home } from './ui/Home'
 
-const store = new HomeStore()
-// With no Gemini connection yet, a script plays the voice AI.
+const params = new URLSearchParams(window.location.search)
+
+// With a backend (VITE_API_URL), the orb starts the real voice session.
+// Without one, or with `?demo`, a script plays the voice AI instead.
+const live = API_URL && !params.has('demo') ? new Live(new HomeStore([])) : null
+const store = live ? live.store : new HomeStore()
 const demo = new Demo(store)
+live?.load()
 
 // The debug view is always on in dev, and in any build with `?debug` in the
 // URL. It's a separate chunk, loaded only when it's on.
-const params = new URLSearchParams(window.location.search)
 const debugEnabled = import.meta.env.DEV || params.has('debug')
 const DebugView = lazy(() => import('./debug/DebugView').then((m) => ({ default: m.DebugView })))
 const OPEN_KEY = 'primered-landing:debug-open'
@@ -22,7 +28,7 @@ const show = (id: string) => {
   const screen = designedScreens.find((s) => s.id === id)
   if (screen) store.load(screen.state())
 }
-if (debugEnabled) Object.assign(window, { primered: { store, demo, show } })
+if (debugEnabled) Object.assign(window, { primered: { store, demo, live, show } })
 
 function isTyping(target: EventTarget | null) {
   return target instanceof HTMLElement && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))
@@ -30,15 +36,18 @@ function isTyping(target: EventTarget | null) {
 
 const start = () => {
   store.tapStart()
-  demo.play(fullDemo)
+  if (live) live.start()
+  else demo.play(fullDemo)
 }
 const stop = () => {
   demo.cancel()
+  live?.end()
   store.stop()
 }
 const startOver = () => {
   store.startOver()
-  demo.play(greetingDemo)
+  if (live) live.end().then(() => live.start())
+  else demo.play(greetingDemo)
 }
 
 export default function App() {

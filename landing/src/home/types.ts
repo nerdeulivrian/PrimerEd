@@ -41,7 +41,8 @@ export type Turn =
   | { id: number; kind: 'learner'; text: string; animate: boolean }
   /** Where the stepper sits in the thread. It draws `HomeState.generation`. */
   | { id: number; kind: 'stepper' }
-  | { id: number; kind: 'stopped' }
+  /** The divider when the session ends. `text` defaults to "You stopped the conversation". */
+  | { id: number; kind: 'stopped'; text?: string }
 
 export type View = 'home' | 'experience' | 'path'
 
