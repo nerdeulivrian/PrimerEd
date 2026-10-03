@@ -172,11 +172,24 @@ export async function useLaunch(code: string): Promise<{ learnerId: string; leve
     [code],
   )
   if (!rows[0]) return null
-  const level = await pool.query(
-    `select id, experience_id as "experienceId", position, title, lesson from levels where id = $1`,
-    [rows[0].levelId],
+  return { learnerId: rows[0].learnerId, level: await levelById(rows[0].levelId) }
+}
+
+/** The level a launch code opens, without using the code up; null if it's unknown, used or expired. */
+export async function peekLaunch(code: string): Promise<LevelRow | null> {
+  const { rows } = await pool.query(
+    `select level_id as "levelId" from launches where code = $1 and used_at is null and expires_at > now()`,
+    [code],
   )
-  return { learnerId: rows[0].learnerId, level: level.rows[0] }
+  return rows[0] ? levelById(rows[0].levelId) : null
+}
+
+async function levelById(id: string): Promise<LevelRow> {
+  const { rows } = await pool.query(
+    `select id, experience_id as "experienceId", position, title, lesson from levels where id = $1`,
+    [id],
+  )
+  return rows[0]
 }
 
 export async function completeLevel(levelId: string, score: number, total: number) {

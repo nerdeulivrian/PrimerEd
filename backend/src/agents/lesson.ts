@@ -3,6 +3,17 @@ import { completeLevel, type LevelRow } from '../db.ts'
 import { stripAnswers } from '../lesson/strip.ts'
 import { relay, type Session } from '../sessions.ts'
 
+/**
+ * The browser holds each result until the tutor's voice has caught up with the
+ * call (Gemini makes its audio faster than it plays), so the screen changes when
+ * the voice gets there. That can take a while after a long narration.
+ */
+const CALL_TIMEOUT_MS = 35_000
+
+type LessonTool = Tool & { engineName: string }
+
+const withTimeout = (tools: LessonTool[]) => tools.map((tool) => ({ ...tool, timeoutMs: CALL_TIMEOUT_MS + 5000 }))
+
 const stepId = { type: 'string' as const, description: 'Id of the current step.' }
 
 /**
@@ -10,7 +21,7 @@ const stepId = { type: 'string' as const, description: 'Id of the current step.'
  * names can only be letters and numbers, so Gemini sees camelCase names and
  * the browser gets the engine's snake_case ones.
  */
-const lessonTools: (Tool & { engineName: string })[] = [
+const lessonTools = withTimeout([
   {
     name: 'startLesson',
     engineName: 'start_lesson',
@@ -68,13 +79,13 @@ const lessonTools: (Tool & { engineName: string })[] = [
     parameters: {},
     required: [],
   },
-]
+])
 
 export function lessonAgent(level: LevelRow) {
   const instructions = `You are PrimerEd's voice tutor, teaching one lesson. The learner uses the app only by talking with you, so you move through the lesson with your functions. Never mention functions, tools or ids.
 
 How the lesson goes:
-- When they're ready, call startLesson, then teach each step in order.
+- You have just asked if they're ready to begin. Wait for their answer: call startLesson only once they say yes, then teach each step in order.
 - Slide: say its narration in your own natural words, using the talking points. Then call nextStep.
 - Question: read the question (and the options with their letters). When they answer, call selectOption or setSpokenAnswer, then ask if they're sure. If yes, call submitAnswer and read out the result and its feedback kindly. If not, let them change it. Then call nextStep.
 - You never know the answers: the app grades them. Don't guess or hint.
@@ -92,7 +103,7 @@ export async function handleLessonTool(session: Session, name: string, args: Rec
   const tool = lessonTools.find((t) => t.name === name)
   if (!tool) return { success: false, error: `Unknown function ${name}.` }
   const callArgs = Object.fromEntries(Object.keys(tool.parameters).map((k) => [k, args[k]]))
-  const result = (await relay(session, tool.engineName, callArgs)) as { score?: number; total?: number } | undefined
+  const result = (await relay(session, tool.engineName, callArgs, CALL_TIMEOUT_MS)) as { score?: number; total?: number } | undefined
   if (tool.engineName === 'finish_lesson' && session.levelId && typeof result?.score === 'number' && typeof result.total === 'number') {
     await completeLevel(session.levelId, result.score, result.total)
   }

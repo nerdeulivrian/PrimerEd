@@ -9,7 +9,7 @@ import { handleLessonTool, lessonAgent } from './agents/lesson.ts'
 import { closeTunnel, TOOL_SECRET, toolsUrlReady } from './agora.ts'
 import { requireLearner, signLearnerToken, type AuthEnv } from './auth.ts'
 import { config } from './config.ts'
-import { createLearner, listExperiences, migrate, pool, useLaunch } from './db.ts'
+import { createLearner, listExperiences, migrate, peekLaunch, pool, useLaunch } from './db.ts'
 import { closeAll, closeSession, getSession, openSession, resolveCall } from './sessions.ts'
 import { MEDIA_DIR } from './storage.ts'
 
@@ -41,6 +41,13 @@ app.post('/api/home-sessions', requireLearner, async (c) => {
 })
 
 /** Starts a level's voice session from the one-time code landing hands over. */
+/** What a launch code opens, before START: the lesson page shows the level while it gets ready. */
+app.get('/api/launches/:code', async (c) => {
+  const level = await peekLaunch(c.req.param('code'))
+  if (!level) return c.json({ error: 'This link has expired. Go back and open the level again.' }, 410)
+  return c.json({ lesson: level.lesson, level: { experienceId: level.experienceId, number: level.position + 1 } })
+})
+
 app.post('/api/lesson-sessions', async (c) => {
   const { launch } = await c.req.json<{ launch?: string }>()
   const used = launch ? await useLaunch(launch) : null
