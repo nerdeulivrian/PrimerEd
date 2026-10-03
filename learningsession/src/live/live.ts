@@ -28,6 +28,10 @@ const QUIET_LEVEL = 0.02
 /** Never hold a call longer than this (the backend gives up at 35 s). */
 const MAX_HOLD_MS = 25_000
 
+/** Transcript text without Gemini's markers, e.g. "<no speech>" or "{pause}" (or one still arriving, "<no"). */
+const spoken = (text: string) =>
+  text.replace(/<[^>]*>|\{[^}]*\}|[<{][^>}]*$/g, ' ').replace(/\s+/g, ' ').trim()
+
 /** Whether this page may play sound without a tap (the browser's autoplay policy). */
 function soundAllowed() {
   try {
@@ -148,6 +152,11 @@ export class LessonLive {
 
   private onAgent(m: AgentMessage) {
     if (m.object === 'message.state') this.agentSpeaking = m.state === 'speaking'
+    if (m.object === 'assistant.transcription') {
+      const { turn_id, text } = m as Extract<AgentMessage, { object: 'assistant.transcription' }>
+      const clean = spoken(text)
+      if (clean) this.store.aiText(`a${turn_id}`, clean)
+    }
   }
 
   private listen(events: EventSource) {

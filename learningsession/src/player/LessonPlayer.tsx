@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { currentStep } from '../session/engine'
 import type { SessionState } from '../session/state'
-import type { Pressed } from '../session/store'
+import type { Caption, Pressed } from '../session/store'
 import { BottomSheet, type SheetContent } from './BottomArea'
 import { EntryScreen } from './EntryScreen'
 import { ExperienceComplete } from './ExperienceComplete'
 import { MultipleChoice } from './MultipleChoice'
 import { Slide } from './Slide'
+import { SlideCaption } from './SlideCaption'
 import { SpeakAnswer } from './SpeakAnswer'
 import { tierStyle, type Tone } from './styles'
 import { TrueFalse } from './TrueFalse'
@@ -15,6 +16,8 @@ interface Props {
   session: SessionState
   /** The button the voice AI is pressing right now, if any. */
   pressed?: Pressed | null
+  /** What the tutor is saying: shown as subtitles over slides. */
+  caption?: Caption | null
   onStart: () => void
 }
 
@@ -43,7 +46,7 @@ function StepBody({ session }: { session: SessionState }) {
  * clickable except START.
  * Must sit inside an `@container` element: breakpoints are container queries.
  */
-export function LessonPlayer({ session, pressed, onStart }: Props) {
+export function LessonPlayer({ session, pressed, caption, onStart }: Props) {
   const { lesson, phase } = session
   const step = phase === 'lesson' ? currentStep(session) : null
   const result = step ? session.results[step.id] : undefined
@@ -94,9 +97,12 @@ export function LessonPlayer({ session, pressed, onStart }: Props) {
       ) : (
         step &&
           (step.type === 'slide' ? (
-            <div key={step.id} className="flex min-h-0 flex-1 animate-step-in flex-col">
-              <StepBody session={session} />
-            </div>
+            <>
+              <div key={step.id} className="flex min-h-0 flex-1 animate-step-in flex-col">
+                <StepBody session={session} />
+              </div>
+              <SlideCaption caption={caption?.step === step.id ? caption : null} />
+            </>
           ) : (
             <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-[15px] @tab:px-[70px] @tab:py-[20px] @desk:px-0">
               <div key={step.id} className="my-auto flex w-full animate-step-in justify-center py-[20px] @tab:py-0">

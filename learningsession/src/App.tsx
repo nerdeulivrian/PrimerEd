@@ -80,6 +80,7 @@ export default function App() {
       <LessonPlayer
         session={screen}
         pressed={snapshot.pressed}
+        caption={snapshot.caption}
         onStart={() => (live ? live.tapStart() : store.tapStart())}
       />
     ) : (
