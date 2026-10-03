@@ -52,10 +52,24 @@ function describe(e: ExperienceView) {
   return `- id ${e.id}: "${e.title}" (${e.subject}), ${next}. Levels: ${e.levels.map((l, i) => `${i + 1}. ${l.title}`).join('; ')}`
 }
 
+/**
+ * Agora hands the greeting to Gemini as if the learner had said it, so Gemini
+ * answered it rather than saying it. The greeting is a cue instead, and the
+ * welcome itself is in the instructions.
+ */
+export const JOINED_CUE = 'Hello!'
+
 export async function homeAgent(learnerId: string) {
   const experiences = await listExperiences(learnerId)
+  const welcome = experiences.length
+    ? "Welcome back to PrimerEd! Do you want to make a new learning experience today, or pick up one you've done before?"
+    : "Hi, welcome to PrimerEd! I'm your learning guide, and everything here works by voice. Tell me anything you're curious about, and I'll put together lessons with pictures and questions, just for you. So, what would you like to learn today?"
   const instructions = `You are the voice of PrimerEd, a learning app that people use only by talking with you. There is nothing to tap or type, so you do everything on screen with your functions.
 Keep every reply short: one to three spoken sentences, warm and natural. Ask one question at a time. Never mention functions, tools or ids.
+
+The conversation always starts with "${JOINED_CUE}". Reply to it with this welcome, word for word, with nothing before or after it:
+"${welcome}"
+Then wait for their reply.
 
 To make a new learning experience:
 1. Find out what they want to learn, how much they know already, and anything they want to focus on. Don't ask more than needed.
@@ -70,10 +84,7 @@ If something fails, say so simply and offer to try again. Don't invent experienc
 
 The learner's saved experiences:
 ${experiences.length ? experiences.map(describe).join('\n') : 'None yet.'}`
-  const greeting = experiences.length
-    ? "Hi there! Do you want to make a new learning experience today, or pick up one you've done before?"
-    : 'Hi there! What would you like to learn today?'
-  return { instructions, greeting, tools: homeTools }
+  return { instructions, greeting: JOINED_CUE, tools: homeTools }
 }
 
 async function findExperience(learnerId: string, ref: string) {

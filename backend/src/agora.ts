@@ -87,7 +87,7 @@ export interface AgentOptions {
   channel: Channel
   sessionId: string
   instructions: string
-  /** Spoken first, as soon as the learner joins: the AI always speaks first. */
+  /** Sent to the model as soon as the learner joins (as if they had said it), so the AI speaks first. */
   greeting: string
   tools: Tool[]
 }
