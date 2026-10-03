@@ -1,0 +1,111 @@
+@import "tailwindcss";
+
+/*
+ * Design tokens from designMain.pen.
+ * The first block mirrors the .pen variables by name; the rest are the
+ * literal colours the design uses for feedback states, tiers and badges.
+ */
+@theme {
+  --font-main: "Nunito", system-ui, sans-serif;
+
+  --color-primary: #ff9600;
+  --color-primary-dark: #e08600;
+  --color-bg: #ffffff;
+  --color-surface: #f7f7f7;
+  --color-border: #e5e5e5;
+  --color-text: #4b4b4b;
+  --color-text-secondary: #777777;
+  --color-text-muted: #afafaf;
+
+  --color-heading: #3c3c3c;
+  --color-option: #999999;
+  --color-field-border: #e6e6e6;
+  --color-badge: #008cff;
+
+  --color-primary-soft: #ffebcf;
+  --color-primary-tier: #ffe9c7;
+  --color-primary-shine: #ffb040;
+  --color-primary-shadow: #b36900;
+
+  --color-correct: #58cc02;
+  --color-correct-dark: #58a700;
+  --color-correct-soft: #e4ffcf;
+  --color-correct-panel: #d7ffb8;
+  --color-correct-track: #b5e88e;
+
+  --color-incorrect: #ff4b4b;
+  --color-incorrect-dark: #a70404;
+  --color-incorrect-soft: #ffd7d8;
+  --color-incorrect-panel: #ffdfe0;
+  --color-incorrect-track: #fab9bb;
+
+  /* Breakpoints, used as container queries (@tab:, @desk:) so the
+     simulator can preview every breakpoint inside one browser window.
+     Mobile < 755px, tablet 755–1024px, desktop > 1024px. */
+  --container-tab: 755px;
+  --container-desk: 1025px;
+}
+
+@layer base {
+  html,
+  body {
+    height: 100%;
+    /* The app fills the screen; no rubber-band scrolling of the whole page. */
+    overscroll-behavior: none;
+  }
+
+  body {
+    font-family: var(--font-main);
+    color: var(--color-text);
+    /* The design sets text to the font's "normal" line height unless noted. */
+    line-height: normal;
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+@keyframes step-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Duolingo-style press, like `:active { box-shadow: none; transform: translateY(5px) }`:
+   the button snaps down by its shadow's depth, holds, then snaps back up.
+   No easing in either direction. Set --press-depth to the shadow height. */
+@keyframes press {
+  from,
+  to {
+    transform: translateY(var(--press-depth, 4px));
+    box-shadow: none;
+  }
+}
+
+@utility animate-press {
+  animation: press 120ms;
+}
+
+@utility animate-step-in {
+  animation: step-in 260ms ease-out both;
+}
+
+/* A piece of the tutor's streamed transcript arriving (as in landing's captions). */
+@keyframes word-in {
+  from {
+    opacity: 0;
+    filter: blur(2px);
+  }
+  to {
+    opacity: 1;
+    filter: none;
+  }
+}
+
+@utility animate-word {
+  animation: word-in 280ms ease-out both;
+}
