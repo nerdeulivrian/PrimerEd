@@ -5,7 +5,7 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { streamSSE } from 'hono/streaming'
 import { homeAgent, handleHomeTool } from './agents/home.ts'
-import { handleLessonTool, lessonAgent } from './agents/lesson.ts'
+import { handleLessonTool, lessonSession } from './agents/lesson.ts'
 import { closeTunnel, TOOL_SECRET, toolsUrlReady } from './agora.ts'
 import { requireLearner, signLearnerToken, type AuthEnv } from './auth.ts'
 import { config } from './config.ts'
@@ -40,20 +40,20 @@ app.post('/api/home-sessions', requireLearner, async (c) => {
   return c.json({ sessionId: session.id, rtc: session.channel.rtc })
 })
 
-/** Starts a level's voice session from the one-time code landing hands over. */
-/** What a launch code opens, before START: the lesson page shows the level while it gets ready. */
+/** What a launch code opens, without using it up: the lesson page shows the level before START. */
 app.get('/api/launches/:code', async (c) => {
   const level = await peekLaunch(c.req.param('code'))
   if (!level) return c.json({ error: 'This link has expired. Go back and open the level again.' }, 410)
   return c.json({ lesson: level.lesson, level: { experienceId: level.experienceId, number: level.position + 1 } })
 })
 
+/** A level's voice session, from the one-time code landing hands over (usually already started by openLevel). */
 app.post('/api/lesson-sessions', async (c) => {
   const { launch } = await c.req.json<{ launch?: string }>()
   const used = launch ? await useLaunch(launch) : null
   if (!used) return c.json({ error: 'This link has expired. Go back and open the level again.' }, 410)
   const { learnerId, level } = used
-  const session = await openSession('lesson', learnerId, lessonAgent(level), level.id)
+  const session = await lessonSession(launch!, learnerId, level)
   return c.json({
     sessionId: session.id,
     rtc: session.channel.rtc,

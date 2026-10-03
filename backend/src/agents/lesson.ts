@@ -1,7 +1,7 @@
 import type { Tool } from '../agora.ts'
 import { completeLevel, type LevelRow } from '../db.ts'
 import { stripAnswers } from '../lesson/strip.ts'
-import { relay, type Session } from '../sessions.ts'
+import { closeSession, getSession, openSession, relay, type Session } from '../sessions.ts'
 
 /**
  * The browser holds each result until the tutor's voice has caught up with the
@@ -97,6 +97,38 @@ The lesson (answers removed):
 ${JSON.stringify(stripAnswers(level.lesson))}`
   const greeting = `Welcome to level ${level.position + 1}, ${level.title}. Ready to begin?`
   return { instructions, greeting, tools: lessonTools }
+}
+
+/**
+ * Lesson tutors started early, by launch code. openLevel starts one while
+ * landing is still saying goodbye, so the lesson page joins a tutor that's
+ * already up. Its greeting waits until the learner joins the channel.
+ */
+const early = new Map<string, { at: number; session: Promise<Session> }>()
+/** Agora stops an agent that's been alone in its channel for 30 s (idle_timeout); stay well inside that. */
+const EARLY_MAX_AGE_MS = 20_000
+
+export function startLessonEarly(code: string, learnerId: string, level: LevelRow) {
+  const session = openSession('lesson', learnerId, lessonAgent(level), level.id)
+  session.catch((err) => console.warn('early lesson tutor failed:', err.message))
+  early.set(code, { at: Date.now(), session })
+  // Not picked up in time: stop it.
+  setTimeout(() => {
+    if (early.get(code)?.session !== session) return
+    early.delete(code)
+    session.then(closeSession, () => {})
+  }, EARLY_MAX_AGE_MS)
+}
+
+/** The tutor for a launch code: the one started early if it's still fresh, otherwise a new one. */
+export async function lessonSession(code: string, learnerId: string, level: LevelRow): Promise<Session> {
+  const started = early.get(code)
+  early.delete(code)
+  if (started && Date.now() - started.at < EARLY_MAX_AGE_MS) {
+    const session = await started.session.catch(() => null)
+    if (session && getSession(session.id)) return session
+  }
+  return openSession('lesson', learnerId, lessonAgent(level), level.id)
 }
 
 export async function handleLessonTool(session: Session, name: string, args: Record<string, string | undefined>) {

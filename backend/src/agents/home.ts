@@ -3,6 +3,7 @@ import type { Tool } from '../agora.ts'
 import { config } from '../config.ts'
 import { createLaunch, getLevel, listExperiences, markOpened, saveExperience, type ExperienceView } from '../db.ts'
 import { createExperience } from '../generate/pipeline.ts'
+import { startLessonEarly } from './lesson.ts'
 import { push, relay, type Session } from '../sessions.ts'
 
 /** The whole experience must be made inside Agora's 100 s tool timeout. */
@@ -146,6 +147,7 @@ export async function handleHomeTool(session: Session, name: string, args: Args)
       if (!level) return { success: false, error: 'That level is missing.' }
       const code = randomBytes(18).toString('base64url')
       await createLaunch(session.learnerId, level.id, code)
+      startLessonEarly(code, session.learnerId, level)
       const url = `${config.lessonUrl}/?launch=${code}`
       const result = await relay(session, 'openLevel', { experienceId: experience.id, level: number, url })
       return { ...(result as object), level: number, title: level.title }
