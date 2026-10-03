@@ -1,8 +1,11 @@
-# Its own git repo (see learningsession/README.md)
-learningsession/
+# Design files and the Agora × Gemini test project stay local
+*.pen
+functionCallingtestAgoraxGemini/
 
-# Its own git repo (see landing/README.md)
-landing/
+# Secrets
+.env
+.env.local
 
-# Its own git repo (see backend/README.md)
-backend/
+.DS_Store
+node_modules/
+dist/
