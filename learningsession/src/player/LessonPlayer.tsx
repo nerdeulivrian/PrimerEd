@@ -100,8 +100,8 @@ export function LessonPlayer({ session, pressed, onStart }: Props) {
           ) : (
             <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-[15px] @tab:px-[70px] @tab:py-[20px] @desk:px-0">
               <div key={step.id} className="my-auto flex w-full animate-step-in justify-center py-[20px] @tab:py-0">
-                {/* Questions are drawn at 80% of the design's size on tablet and desktop. */}
-                <div className="w-full @tab:[zoom:0.8] @desk:w-[940px]">
+                {/* Questions are drawn at 90% of the design's size on tablet and desktop. */}
+                <div className="w-full @tab:[zoom:0.9] @desk:w-[940px]">
                   <StepBody session={session} />
                 </div>
               </div>
